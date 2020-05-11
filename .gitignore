@@ -14,6 +14,8 @@
 # Mac temp files
 **/.DS_Store*
 
+out
+
 # Various editor/tool temporary folders
 .project
 .classpath
