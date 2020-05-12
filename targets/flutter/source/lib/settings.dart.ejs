@@ -1,39 +1,50 @@
 import 'package:playfabsdk/api/api_settings.dart';
+import 'package:playfabsdk/models/api_errors_models.dart';
 
 class PlayFabSettings {
-    
-    static const String sdkVersion = '<%- sdkVersion %>';
-    static const String buildIdentifier = '<%- buildIdentifier %>';
-    static const String sdkVersionString = 'FlutterSDK-<%- sdkVersion %>';
+  static const String sdkVersion = '<%- sdkVersion %>';
+  static const String buildIdentifier = '<%- buildIdentifier %>';
+  static const String sdkVersionString = 'FlutterSDK-<%- sdkVersion %>';
 
-    static const String defaultProductionEnvironmentUrl = 'playfabapi.com';
+  static const String AD_TYPE_IDFA = 'Idfa';
+  static const String AD_TYPE_ANDROID_ID = 'Adid';
 
-    static String getFullUrl(String apiCall, Map<String, String> requestParams, PlayFabApiSettings apiSettings) {
-        final StringBuffer sb = StringBuffer();
+  static const String defaultProductionEnvironmentUrl = 'playfabapi.com';
 
-        final String baseUrl = apiSettings.productionEnvironmentUrl;
-        if (!baseUrl.startsWith("http")) {
-            sb.write("https://");
+  static ErrorCallback globalErrorHandler;
 
-            if (apiSettings.titleId?.isNotEmpty == true) {
-                sb.write(apiSettings.titleId);
-                sb.write(".");
-            }
+  // Set by GetEntityToken
+  static String entityToken;
 
-            if (apiSettings.verticalName?.isNotEmpty == true) {
-                sb.write(apiSettings.verticalName);
-                sb.write(".");
-            }
-        }
+  // Set by any Client Login Call
+  static String clientSessionTicket;
 
-        sb.write(baseUrl);
-        sb.write(apiCall);
+  static String getFullUrl(String apiCall, Map<String, String> requestParams, PlayFabApiSettings apiSettings) {
+    final StringBuffer sb = StringBuffer();
 
-        if (requestParams != null) {
-            sb.write("?");
-            sb.write(requestParams.entries.map((e) => "${e.key}=${e.value}").join("&"));
-        }
+    final String baseUrl = apiSettings.productionEnvironmentUrl;
+    if (!baseUrl.startsWith("http")) {
+      sb.write("https://");
 
-        return sb.toString();
+      if (apiSettings.titleId?.isNotEmpty == true) {
+        sb.write(apiSettings.titleId);
+        sb.write(".");
+      }
+
+      if (apiSettings.verticalName?.isNotEmpty == true) {
+        sb.write(apiSettings.verticalName);
+        sb.write(".");
+      }
     }
+
+    sb.write(baseUrl);
+    sb.write(apiCall);
+
+    if (requestParams != null) {
+      sb.write("?");
+      sb.write(requestParams.entries.map((e) => "${e.key}=${e.value}").join("&"));
+    }
+
+    return sb.toString();
+  }
 }

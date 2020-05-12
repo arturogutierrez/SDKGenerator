@@ -1,13 +1,56 @@
-import 'package:playfabsdk/models/<%- api.name.toLowerCase() %>_models.dart';
+import 'dart:convert';
 
-import 'api_errors.dart';
+import 'package:playfabsdk/api/api.dart';
+import 'package:playfabsdk/api/api_settings.dart';
+import 'package:playfabsdk/models/api_errors_models.dart';
+import 'package:playfabsdk/models/<%- api.name.toLowerCase() %>_models.dart';
+import 'package:playfabsdk/settings.dart';
 
 <%- generateApiSummary("", api, "description")
 %>class PlayFab<%- api.name %>API {
+  final PlayFabApi _api = PlayFabApi();
+  final PlayFabApiSettings _apiSettings;
+
+  PlayFab<%- api.name %>API(this._apiSettings);
+
 <% for(var i in api.calls) { var apiCall = api.calls[i]; %>
-<%- generateApiSummary("    ", apiCall, "summary", ["@param request " + apiCall.request, "@return Async Task will return " + apiCall.result])
-%>    Future<PlayFabResult<<%- apiCall.result %>>> <%- apiCall.name %>(<%- apiCall.request %> request) async {
-        return null;
+<%- generateApiSummary("  ", apiCall, "summary", ["@param request " + apiCall.request, "@return Async Task will return " + apiCall.result])
+%>  Future<PlayFabResult<<%- apiCall.result %>>> <%- apiCall.name %>(<%- apiCall.request %> request) async {
+<%- getRequestActions("    ", apiCall) %>
+    final String url = _apiSettings.getFullUrl('<%- apiCall.url %>');
+    final String body = jsonEncode(request.toJson());
+
+    final response = await _api.execute(url, body, <%- getAuthParams(apiCall) %>);
+
+    if (response is PlayFabError) {
+      if (PlayFabSettings.globalErrorHandler != null) {
+        PlayFabSettings.globalErrorHandler(response);
+      }
+
+      return PlayFabResult<<%- apiCall.result %>>(response, null);
     }
+
+    final Map<String, dynamic> json = jsonDecode(response as String);
+    final <%- apiCall.result %> result = <%- apiCall.result %>.fromJson(json['data']);
+<%- getResultActions("    ", apiCall) %>
+    return PlayFabResult<<%- apiCall.result %>>(null, result);
+  }
+<% } %><% if (hasClientOptions) { %>
+  Future<void> MultiStepClientLogin(bool needsAttribution) {
+    if (needsAttribution &&
+      !_apiSettings.disableAdvertising &&
+      _apiSettings.advertisingIdType?.isNotEmpty == true &&
+      _apiSettings.advertisingIdValue?.isNotEmpty == true) {
+     final AttributeInstallRequest request = AttributeInstallRequest(
+      _apiSettings.advertisingIdType == PlayFabSettings.AD_TYPE_ANDROID_ID ? _apiSettings.advertisingIdValue : null,
+      _apiSettings.advertisingIdType == PlayFabSettings.AD_TYPE_IDFA ? _apiSettings.advertisingIdValue : null,
+     );
+  
+     if (request.adid != null || request.idfa != null) {
+      return AttributeInstall(request);
+     }
+    }
+    return null;
+   }  
 <% } %>
 }
