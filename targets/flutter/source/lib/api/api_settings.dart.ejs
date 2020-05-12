@@ -1,0 +1,31 @@
+import 'package:playfabsdk/settings.dart';
+
+class PlayFabApiSettings {
+
+    Map<String, String> requestGetParams = Map.fromEntries([MapEntry('sdk', PlayFabSettings.sdkVersionString)]);
+    
+    // This is only for customers running a private cluster.  Generally you shouldn't touch this
+    String productionEnvironmentUrl = PlayFabSettings.defaultProductionEnvironmentUrl;
+
+    // The name of a customer vertical. This is only for customers running a private cluster. Generally you shouldn't touch this
+    String verticalName = <%- getVerticalNameDefault() %>;
+
+    // You must set this value for PlayFabSdk to work properly (Found in the Game Manager for your title, at the PlayFab Website)
+    String developerSecretKey = null;
+
+    // You must set this value for PlayFabSdk to work properly (Found in the Game Manager for your title, at the PlayFab Website)
+    String titleId = null;
+
+<% if (hasClientOptions) { %>
+    // Set this to the appropriate AD_TYPE_X constant below
+    bool disableAdvertising = false;
+    // Set this to the appropriate AD_TYPE_X constant below
+    String advertisingIdType = null;
+    // Set this to corresponding device value
+    String AdvertisingIdValue = null;
+<% } %>
+
+    String getFullUrl(String apiCall) {
+        return PlayFabSettings.getFullUrl(apiCall, requestGetParams, this);
+    }
+}

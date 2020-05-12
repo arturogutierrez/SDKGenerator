@@ -1,0 +1,39 @@
+import 'package:playfabsdk/api/api_settings.dart';
+
+class PlayFabSettings {
+    
+    static const String sdkVersion = '<%- sdkVersion %>';
+    static const String buildIdentifier = '<%- buildIdentifier %>';
+    static const String sdkVersionString = 'FlutterSDK-<%- sdkVersion %>';
+
+    static const String defaultProductionEnvironmentUrl = 'playfabapi.com';
+
+    static String getFullUrl(String apiCall, Map<String, String> requestParams, PlayFabApiSettings apiSettings) {
+        final StringBuffer sb = StringBuffer();
+
+        final String baseUrl = apiSettings.productionEnvironmentUrl;
+        if (!baseUrl.startsWith("http")) {
+            sb.write("https://");
+
+            if (apiSettings.titleId?.isNotEmpty == true) {
+                sb.write(apiSettings.titleId);
+                sb.write(".");
+            }
+
+            if (apiSettings.verticalName?.isNotEmpty == true) {
+                sb.write(apiSettings.verticalName);
+                sb.write(".");
+            }
+        }
+
+        sb.write(baseUrl);
+        sb.write(apiCall);
+
+        if (requestParams != null) {
+            sb.write("?");
+            sb.write(requestParams.entries.map((e) => "${e.key}=${e.value}").join("&"));
+        }
+
+        return sb.toString();
+    }
+}

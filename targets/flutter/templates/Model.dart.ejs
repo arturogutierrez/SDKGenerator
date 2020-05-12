@@ -2,17 +2,19 @@
 %><% if (datatype.properties.length > 0) { %>@JsonSerializable()<% } %>
 class <%- datatype.name %><% if (datatype.sortKey) { %> implements Comparable<<%- datatype.name %>><% } %> {<% for(var i in datatype.properties) { var property = datatype.properties[i] %>
 <%- generateApiSummary("    ", property, "description")
-%>    <%- getPropertyDef(property, datatype) %>;<% } %>
+%>    @JsonKey(name: '<%- property.name %>')
+    <%- getPropertyDef(property, datatype) %>;
+<% } %>
     
     <%- datatype.name %>(<% for(var i in datatype.properties) { var property = datatype.properties[i] %>
-        this.<%- property.name %>, <% }%>
+        this.<%- camelize(property.name) %>, <% }%>
     );
 
 <% if (datatype.sortKey) { %>
     int compareTo(<%- datatype.name %> other) {
-        if (other == null || other.<%- datatype.sortKey%> == null) return 1;
-        if (<%- datatype.sortKey%> == null) return -1;
-        return <%- datatype.sortKey%>.compareTo(other.<%- datatype.sortKey%>);
+        if (other == null || other.<%- camelize(datatype.sortKey) %> == null) return 1;
+        if (<%- camelize(datatype.sortKey) %> == null) return -1;
+        return <%- camelize(datatype.sortKey) %>.compareTo(other.<%- camelize(datatype.sortKey) %>);
     }<% } %>
 
     <% if (datatype.properties.length > 0) { %>factory <%- datatype.name %>.fromJson(Map<String, dynamic> json) => _$<%- datatype.name %>FromJson(json);

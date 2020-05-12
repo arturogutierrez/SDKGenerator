@@ -1,6 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
 
-part 'playfab_<%- api.name.toLowerCase() %>_models.g.dart';
+part '<%- api.name.toLowerCase() %>_models.g.dart';
 
 <% for(var d in api.datatypes) { var datatype = api.datatypes[d] %>
 <%- makeDatatype(datatype, api) %><% } %>

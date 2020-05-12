@@ -1,0 +1,13 @@
+import 'package:playfabsdk/models/<%- api.name.toLowerCase() %>_models.dart';
+
+import 'api_errors.dart';
+
+<%- generateApiSummary("", api, "description")
+%>class PlayFab<%- api.name %>API {
+<% for(var i in api.calls) { var apiCall = api.calls[i]; %>
+<%- generateApiSummary("    ", apiCall, "summary", ["@param request " + apiCall.request, "@return Async Task will return " + apiCall.result])
+%>    Future<PlayFabResult<<%- apiCall.result %>>> <%- apiCall.name %>(<%- apiCall.request %> request) async {
+        return null;
+    }
+<% } %>
+}

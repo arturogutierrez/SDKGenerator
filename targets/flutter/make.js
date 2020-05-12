@@ -18,12 +18,15 @@ exports.makeClientAPI2 = function (apis, sourceDir, apiOutputDir) {
         errors: apis[0].errors,
         hasClientOptions: authMechanisms.includes("SessionTicket"),
         hasServerOptions: authMechanisms.includes("SecretKey"),
-        sdkVersion: sdkGlobals.sdkVersion
+        sdkVersion: sdkGlobals.sdkVersion,
+        getVerticalNameDefault: getVerticalNameDefault
     };
 
-    templatizeTree(locals, path.resolve(sourceDir, "source"), apiOutputDir);
-
     makeDatatypes(apis, sourceDir, apiOutputDir);
+    for (var a = 0; a < apis.length; a++)
+        makeApi(apis[a], sourceDir, apiOutputDir);
+
+    templatizeTree(locals, path.resolve(sourceDir, "source"), apiOutputDir);
 }
 
 // generate.js looks for some specific exported functions (as defined in TOC.json) in make.js, like:
@@ -32,6 +35,24 @@ exports.makeServerAPI = function (apis, sourceDir, apiOutputDir) {
 
 // generate.js looks for some specific exported functions (as defined in TOC.json) in make.js, like:
 exports.makeCombinedAPI = function (apis, sourceDir, apiOutputDir) {
+}
+
+function makeApi(api, sourceDir, apiOutputDir) {
+    var outFileName = path.resolve(apiOutputDir, "lib/api/" + api.name.toLowerCase() + "_api.dart");
+    console.log("  - GenApi " + api.name + " to " + outFileName);
+
+    var locals = {
+        api: api,
+        getAuthParams: getAuthParams,
+        getRequestActions: getRequestActions,
+        getResultActions: getResultActions,
+        getUrlAccessor: getUrlAccessor,
+        generateApiSummary: generateApiSummary,
+        hasClientOptions: getAuthMechanisms([api]).includes("SessionTicket"),
+    };
+
+    var apiTemplate = getCompiledTemplate(path.resolve(sourceDir, "templates/API.dart.ejs"));
+    writeFile(outFileName, apiTemplate(locals));
 }
 
 function makeDatatypes(apis, sourceDir, apiOutputDir) {
@@ -45,7 +66,8 @@ function makeDatatypes(apis, sourceDir, apiOutputDir) {
             api: api,
             datatype: datatype,
             getPropertyDef: getModelPropertyDef,
-            generateApiSummary: generateApiSummary
+            generateApiSummary: generateApiSummary,
+            camelize: camelize
         };
         return datatype.isenum ? enumTemplate(locals) : modelTemplate(locals);
     };
@@ -53,22 +75,35 @@ function makeDatatypes(apis, sourceDir, apiOutputDir) {
     for (var a = 0; a < apis.length; a++) {
         var locals = {
             api: apis[a],
-            makeDatatype: makeDatatype
+            makeDatatype: makeDatatype,
+            camelize: camelize
         };
-        writeFile(path.resolve(apiOutputDir, "lib/models/playfab_" + apis[a].name.toLowerCase() + "_models.dart"), modelsTemplate(locals));
+        writeFile(path.resolve(apiOutputDir, "lib/models/" + apis[a].name.toLowerCase() + "_models.dart"), modelsTemplate(locals));
     }
+}
+
+function camelize(str) {
+    return str.substring(0, 1).toLowerCase() + str.substring(1);
+}
+
+function getVerticalNameDefault() {
+    if (sdkGlobals.verticalName) {
+        return "'" + sdkGlobals.verticalName + "'";
+    }
+
+    return "null";
 }
 
 function getModelPropertyDef(property, datatype) {
     var basicType = getPropertyDartType(property, datatype);
     if (property.collection && property.collection === "array")
-        return "List<" + basicType + "> " + property.name;
+        return "List<" + basicType + "> " + camelize(property.name);
     else if (property.collection && property.collection === "map")
-        return "Map<String," + basicType + "> " + property.name;
+        return "Map<String," + basicType + "> " + camelize(property.name);
     else if (property.collection)
         throw "Unknown collection type: " + property.collection + " for " + property.name + " in " + datatype.name;
 
-    return getPropertyDartType(property, datatype) + " " + property.name;
+    return getPropertyDartType(property, datatype) + " " + camelize(property.name);
 }
 
 function getPropertyDartType(property, datatype) {
@@ -91,7 +126,7 @@ function getPropertyDartType(property, datatype) {
     else if (property.actualtype === "uint64")
         return "int" + optional;
     else if (property.actualtype === "float")
-        return "float" + optional;
+        return "double" + optional;
     else if (property.actualtype === "double")
         return "double" + optional;
     else if (property.actualtype === "DateTime")
@@ -103,6 +138,56 @@ function getPropertyDartType(property, datatype) {
     else if (property.actualtype === "object")
         return "Object";
     throw "Unknown property type: " + property.actualtype + " for " + property.name + " in " + datatype.name;
+}
+
+function getAuthParams(apiCall) {
+    if (apiCall.auth === "EntityToken")
+        return "\"X-EntityToken\", PlayFabSettings.EntityToken";
+    if (apiCall.auth === "SecretKey")
+        return "\"X-SecretKey\", PlayFabSettings.DeveloperSecretKey";
+    if (apiCall.auth === "SessionTicket")
+        return "\"X-Authorization\", PlayFabSettings.ClientSessionTicket";
+    if (apiCall.url === "/Authentication/GetEntityToken")
+        return "authKey, authValue";
+    return "null, null";
+}
+
+function getRequestActions(tabbing, apiCall) {
+    if (apiCall.result === "LoginResult" || apiCall.request === "RegisterPlayFabUserRequest")
+        return tabbing + "request.TitleId = PlayFabSettings.TitleId != null ? PlayFabSettings.TitleId : request.TitleId;\n"
+            + tabbing + "if (request.TitleId == null) throw new Exception (\"Must be have PlayFabSettings.TitleId set to call this method\");\n";
+    if (apiCall.url === "/Authentication/GetEntityToken")
+        return tabbing + "String authKey = null, authValue = null;\n"
+            + tabbing + "if (PlayFabSettings.EntityToken != null) { authKey = \"X-EntityToken\"; authValue = PlayFabSettings.EntityToken; }\n"
+            + tabbing + "else if (PlayFabSettings.ClientSessionTicket != null) { authKey = \"X-Authorization\"; authValue = PlayFabSettings.ClientSessionTicket; }\n"
+            + tabbing + "else if (PlayFabSettings.DeveloperSecretKey != null) { authKey = \"X-SecretKey\"; authValue = PlayFabSettings.DeveloperSecretKey; }\n";
+    if (apiCall.auth === "SessionTicket")
+        return tabbing + "if (PlayFabSettings.ClientSessionTicket == null) throw new Exception (\"Must be logged in to call this method\");\n";
+    if (apiCall.auth === "SecretKey")
+        return tabbing + "if (PlayFabSettings.DeveloperSecretKey == null) throw new Exception (\"Must have PlayFabSettings.DeveloperSecretKey set to call this method\");\n";
+    if (apiCall.auth === "EntityToken")
+        return tabbing + "if (PlayFabSettings.EntityToken == null) throw new Exception (\"Must call GetEntityToken before you can use the Entity API\");\n";
+    return "";
+}
+
+function getResultActions(tabbing, apiCall) {
+    if (apiCall.url === "/Authentication/GetEntityToken")
+        return tabbing + "PlayFabSettings.EntityToken = result.EntityToken != null ? result.EntityToken : PlayFabSettings.EntityToken;\n";
+    else if (apiCall.result === "LoginResult")
+        return tabbing + "PlayFabSettings.ClientSessionTicket = result.SessionTicket != null ? result.SessionTicket : PlayFabSettings.ClientSessionTicket;\n"
+            + tabbing + "if (result.EntityToken != null) PlayFabSettings.EntityToken = result.EntityToken.EntityToken != null ? result.EntityToken.EntityToken : PlayFabSettings.EntityToken;\n"
+            + tabbing + "MultiStepClientLogin(resultData.data.SettingsForUser.NeedsAttribution);\n";
+    else if (apiCall.result === "RegisterPlayFabUserResult")
+        return tabbing + "PlayFabSettings.ClientSessionTicket = result.SessionTicket != null ? result.SessionTicket : PlayFabSettings.ClientSessionTicket;\n"
+            + tabbing + "MultiStepClientLogin(resultData.data.SettingsForUser.NeedsAttribution);\n";
+    else if (apiCall.result === "AttributeInstallResult")
+        return tabbing + "// Modify AdvertisingIdType:  Prevents us from sending the id multiple times, and allows automated tests to determine id was sent successfully\n"
+            + tabbing + "PlayFabSettings.AdvertisingIdType += \"_Successful\";\n";
+    return "";
+}
+
+function getUrlAccessor(apiCallUrl) {
+    return "PlayFabSettings.GetURL(\"" + apiCallUrl + "\")";
 }
 
 function generateApiSummary(tabbing, apiElement, summaryParam, extraLines) {
@@ -119,9 +204,9 @@ function generateApiSummary(tabbing, apiElement, summaryParam, extraLines) {
 
     var output;
     if (lines.length === 1 && lines[0]) {
-        output = tabbing + "/** " + lines[0] + " */\n";
+        output = tabbing + "/// " + lines[0] + "\n";
     } else if (lines.length > 1) {
-        output = tabbing + "/**\n" + tabbing + " * " + lines.join("\n" + tabbing + " * ") + "\n" + tabbing + " */\n";
+        output = tabbing + "/// " + lines.join("\n" + tabbing + "/// ") + "\n" + tabbing + "\n";
     } else {
         output = "";
     }
