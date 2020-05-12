@@ -42,8 +42,8 @@ import 'package:playfabsdk/settings.dart';
       _apiSettings.advertisingIdType?.isNotEmpty == true &&
       _apiSettings.advertisingIdValue?.isNotEmpty == true) {
      final AttributeInstallRequest request = AttributeInstallRequest(
-      _apiSettings.advertisingIdType == PlayFabSettings.AD_TYPE_ANDROID_ID ? _apiSettings.advertisingIdValue : null,
-      _apiSettings.advertisingIdType == PlayFabSettings.AD_TYPE_IDFA ? _apiSettings.advertisingIdValue : null,
+      adid: _apiSettings.advertisingIdType == PlayFabSettings.AD_TYPE_ANDROID_ID ? _apiSettings.advertisingIdValue : null,
+      idfa: _apiSettings.advertisingIdType == PlayFabSettings.AD_TYPE_IDFA ? _apiSettings.advertisingIdValue : null,
      );
   
      if (request.adid != null || request.idfa != null) {
